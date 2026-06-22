@@ -2,6 +2,8 @@
 
 A Flutter Android app for tracking and downloading anime torrent releases from [nyaa.si](https://nyaa.si).
 
+<img src="screenshots/preview.jpg" width="320" alt="AniMagnet home screen"/>
+
 ---
 
 ## About
@@ -21,6 +23,8 @@ I wanted a proper mobile app built around my workflow: a watchlist of ongoing an
 - **One-tap magnet** — tap a release to open the magnet link directly in your torrent app
 - **Predictive notifications** — learns each anime's posting cadence from past releases and schedules a local notification ~15 min after the predicted next post, so you get pinged without keeping the app open
 - **Cover art** — pulled from AniList by title and cached on disk
+- **Title sorting** — sort your watchlist alphabetically
+- **Per-anime notification toggle** — enable or disable release alerts on a per-show basis
 - **AMOLED black UI** with blue accents
 
 ---
