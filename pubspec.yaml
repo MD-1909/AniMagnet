@@ -1,0 +1,48 @@
+name: animemagnet
+description: Track anime torrent releases from nyaa.si.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Networking + parsing
+  http: ^1.2.2            # native HTTP for nyaa RSS + AniList GraphQL
+  xml: ^6.5.0             # parse nyaa RSS XML
+
+  # Local persistence (JSON in key/value store — no codegen needed)
+  shared_preferences: ^2.3.2
+
+  # Open magnet links via the OS default torrent handler
+  url_launcher: ^6.3.1
+
+  # Cover art: caches image bytes on disk automatically
+  cached_network_image: ^3.4.1
+
+  # Date formatting for publish dates
+  intl: ^0.19.0
+  flutter_local_notifications: ^22.0.1
+  timezone: ^0.11.0
+  flutter_timezone: ^5.1.0
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - logo.png
+
+# Run: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "logo.png"
