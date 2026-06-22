@@ -14,7 +14,7 @@ A Flutter Android app for tracking and downloading anime torrent releases from [
 
 This app was born out of necessity after [AnimeTosho](https://animetosho.org) — my primary torrent aggregator for anime — shut down. AnimeTosho made it incredibly easy to find, filter, and grab releases in one place. Without it, using nyaa.si directly felt clunky, especially on mobile. Scrolling through nyaa in a browser, manually searching for each show, and juggling which releases I had and hadn't grabbed was a pain.
 
-I wanted a proper mobile app built around my workflow: a watchlist of ongoing anime that surfaces new releases the moment they're up, with one tap to open the magnet link in my torrent app. Since I have no background in Android development, this app was **built entirely by Claude (Anthropic's AI)**. I described what I wanted, Claude wrote every line of Dart/Flutter code, and the result is exactly the app I was looking for.
+I wanted a proper mobile app built around my workflow: a watchlist of ongoing anime that surfaces new releases the moment they're up, with one tap to open the magnet link in my torrent app. Since I have no background in Android development, this app was **built entirely by Claude Opus 4.8**. I described what I wanted, Claude wrote every line of Dart/Flutter code, and the result is exactly the app I was looking for.
 
 ---
 
