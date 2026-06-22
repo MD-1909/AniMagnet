@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" width="120" alt="AniMagnet icon"/>
+  <img src="logo.png?v=2" width="120" alt="AniMagnet icon"/>
 </p>
 
 # AniMagnet
