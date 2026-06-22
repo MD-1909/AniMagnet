@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" width="120" alt="AniMagnet icon"/>
+</p>
+
 # AniMagnet
 
 A Flutter Android app for tracking and downloading anime torrent releases from [nyaa.si](https://nyaa.si).
