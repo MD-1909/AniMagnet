@@ -8,10 +8,26 @@ class AniListMedia {
   final int id;
   final String title;
   final String? coverUrl;
-  const AniListMedia({required this.id, required this.title, this.coverUrl});
+  /// UTC time the next episode airs, from AniList's schedule. Null for
+  /// completed/unreleased series that have no upcoming airing date.
+  final DateTime? nextAiringAt;
+  final int? nextEpisode;
+  /// Year the season aired (e.g. 2025). Used to disambiguate multi-season series.
+  final int? seasonYear;
+  /// Airing status: RELEASING, FINISHED, NOT_YET_RELEASED, CANCELLED, HIATUS.
+  final String? status;
+  const AniListMedia({
+    required this.id,
+    required this.title,
+    this.coverUrl,
+    this.nextAiringAt,
+    this.nextEpisode,
+    this.seasonYear,
+    this.status,
+  });
 }
 
-/// Queries AniList's public GraphQL API for cover art.
+/// Queries AniList's public GraphQL API for cover art and airing schedule.
 /// https://graphql.anilist.co
 class AniListService {
   static final Uri _endpoint = Uri.parse('https://graphql.anilist.co');
@@ -47,6 +63,34 @@ class AniListService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _postPage(
+      String query, Map<String, dynamic> vars) async {
+    try {
+      final resp = await _client
+          .post(
+            _endpoint,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Android) AniMagnet/1.0 (+flutter http)',
+            },
+            body: jsonEncode({'query': query, 'variables': vars}),
+          )
+          .timeout(const Duration(seconds: 15));
+      if (resp.statusCode != 200) {
+        debugPrint('[AniList] HTTP ${resp.statusCode}: ${resp.body}');
+        return [];
+      }
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      final media = body['data']?['Page']?['media'];
+      if (media is List) return media.cast<Map<String, dynamic>>();
+      return [];
+    } catch (e) {
+      debugPrint('[AniList] search failed: $e');
+      return [];
+    }
+  }
+
   /// Look up a single anime by free-text title.
   Future<AniListMedia?> searchByTitle(String title) async {
     const q = r'''
@@ -55,13 +99,36 @@ class AniListService {
           id
           title { romaji english }
           coverImage { large }
+          nextAiringEpisode { airingAt episode }
+          seasonYear
+          status
         }
       }''';
     final media = await _post(q, {'search': title});
     return _toMedia(media);
   }
 
-  /// Fetch cover art by a known AniList ID.
+  /// Search for multiple anime by title — used for the AniList ID picker in
+  /// the edit screen. Returns up to [perPage] results sorted by search rank.
+  Future<List<AniListMedia>> searchMultiple(String query,
+      {int perPage = 8}) async {
+    const q = r'''
+      query ($search: String, $perPage: Int) {
+        Page(perPage: $perPage) {
+          media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+            id
+            title { romaji english }
+            seasonYear
+            status
+            nextAiringEpisode { airingAt episode }
+          }
+        }
+      }''';
+    final items = await _postPage(q, {'search': query, 'perPage': perPage});
+    return items.map((m) => _toMedia(m)).whereType<AniListMedia>().toList();
+  }
+
+  /// Fetch by a known AniList ID.
   Future<AniListMedia?> fetchById(int id) async {
     const q = r'''
       query ($id: Int) {
@@ -69,6 +136,9 @@ class AniListService {
           id
           title { romaji english }
           coverImage { large }
+          nextAiringEpisode { airingAt episode }
+          seasonYear
+          status
         }
       }''';
     final media = await _post(q, {'id': id});
@@ -80,10 +150,26 @@ class AniListService {
     final titles = media['title'] as Map<String, dynamic>?;
     final name = (titles?['english'] ?? titles?['romaji'] ?? '') as String;
     final cover = media['coverImage'] as Map<String, dynamic>?;
+
+    final airing = media['nextAiringEpisode'] as Map<String, dynamic>?;
+    DateTime? nextAiringAt;
+    int? nextEpisode;
+    if (airing != null) {
+      final airingAt = airing['airingAt'];
+      if (airingAt is int) {
+        nextAiringAt = DateTime.fromMillisecondsSinceEpoch(airingAt * 1000, isUtc: true);
+      }
+      nextEpisode = airing['episode'] as int?;
+    }
+
     return AniListMedia(
       id: media['id'] as int,
       title: name,
       coverUrl: cover?['large'] as String?,
+      nextAiringAt: nextAiringAt,
+      nextEpisode: nextEpisode,
+      seasonYear: media['seasonYear'] as int?,
+      status: media['status'] as String?,
     );
   }
 

@@ -15,8 +15,15 @@ class NotificationService {
   static const _channelId = 'episode_alerts';
   static const _channelName = 'Episode alerts';
 
-  /// Buffer added after the predicted post time, to account for upload delays.
-  static const Duration buffer = Duration(minutes: 15);
+  /// How long after the AniList broadcast time we expect a release to appear on
+  /// nyaa. Quick remux groups (SubsPlease, Erai-raws) post within ~1 h; most
+  /// encode groups take 2–4 h. 2 h is a sensible default for actively-tracked
+  /// series — adjust if your preferred group is consistently faster or slower.
+  static const Duration airingToNyaaDelay = Duration(hours: 2);
+
+  /// Fallback buffer added to the cadence-predicted time (used when AniList has
+  /// no upcoming schedule, e.g. for completed series).
+  static const Duration predictionBuffer = Duration(minutes: 15);
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -66,14 +73,27 @@ class NotificationService {
 
     if (!entry.notificationsEnabled) return; // per-entry alerts switched off
 
-    final dates =
-        releases.map((r) => r.pubDate).whereType<DateTime>().toList();
     final now = DateTime.now();
-    final predicted = PostingPredictor.predictNext(dates, now);
-    if (predicted == null) return; // not enough history
 
-    final fireAt = predicted.add(buffer);
-    if (!fireAt.isAfter(now)) return;
+    // Primary: use AniList's broadcast schedule + delay for the group to post.
+    // Fallback: predict from nyaa posting history when no schedule is available
+    // (e.g. completed series, or before AniList data has been fetched).
+    DateTime? fireAt;
+    final nextAiring = entry.nextAiringAt;
+    if (nextAiring != null && nextAiring.isAfter(now.toUtc())) {
+      fireAt = nextAiring.add(airingToNyaaDelay).toLocal();
+      debugPrint('[Notify] "${entry.title}" using AniList airing time: $nextAiring');
+    } else {
+      final dates =
+          releases.map((r) => r.pubDate).whereType<DateTime>().toList();
+      final predicted = PostingPredictor.predictNext(dates, now);
+      if (predicted != null) {
+        fireAt = predicted.add(predictionBuffer);
+        debugPrint('[Notify] "${entry.title}" using cadence prediction: $predicted');
+      }
+    }
+
+    if (fireAt == null || !fireAt.isAfter(now)) return;
 
     final detail = entry.group.isNotEmpty || entry.quality.isNotEmpty
         ? 'Open AniMagnet to grab the ${[
@@ -97,8 +117,6 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
-        // Inexact: no SCHEDULE_EXACT_ALARM permission required; the 15-min
-        // buffer already tolerates imprecision.
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
       debugPrint('[Notify] "${entry.title}" scheduled for $fireAt');

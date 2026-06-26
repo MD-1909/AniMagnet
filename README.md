@@ -25,8 +25,8 @@ I wanted a proper mobile app built around my workflow: a watchlist of ongoing an
 - **Release feed** — on launch and pull-to-refresh, queries each entry's nyaa RSS, filters to matching releases (newest first), shows size and publish date
 - **Seen/unseen tracking** — only unseen releases shown by default; tap to expand watched ones. Opened releases lose the NEW dot automatically
 - **One-tap magnet** — tap a release to open the magnet link directly in your torrent app
-- **Predictive notifications** — learns each anime's posting cadence from past releases and schedules a local notification ~15 min after the predicted next post, so you get pinged without keeping the app open
-- **Cover art** — pulled from AniList by title and cached on disk
+- **Predictive notifications** — schedules a local notification timed to when the episode is expected on nyaa: uses AniList's broadcast schedule (airing time + ~2 h upload delay) when available, falling back to median-interval cadence prediction from past releases
+- **Cover art & airing schedule** — pulled from AniList by title and cached; the edit screen includes a live AniList search picker so you can find and set the exact season without leaving the app
 - **Title sorting** — sort your watchlist alphabetically
 - **Per-anime notification toggle** — enable or disable release alerts on a per-show basis
 - **AMOLED black UI** with blue accents
@@ -82,10 +82,10 @@ lib/
     watch_entry.dart           tracked anime (title/group/quality, match + searchTitle)
   services/
     nyaa_service.dart          RSS fetch/parse, magnet construction, version search
-    anilist_service.dart       GraphQL cover-art lookup
+    anilist_service.dart       GraphQL cover art + airing schedule lookup
     storage_service.dart       shared_preferences (watchlist + seen GUIDs)
-    posting_predictor.dart     median-interval prediction of next episode post time
-    notification_service.dart  schedules predicted alerts (+15 min) via inexact alarms
+    posting_predictor.dart     median-interval prediction of next episode post time (fallback)
+    notification_service.dart  schedules episode alerts via inexact alarms
   screens/
     home_screen.dart           anime cards: art left, unseen releases right, expand watched
     add_entry_screen.dart      search → pick version → save pattern
@@ -94,9 +94,21 @@ lib/
     release_tile.dart          compact release row: NEW dot + size/date/seeders + magnet
 ```
 
-### How Predictive Notifications Work
+### How Notifications Work
 
-`PostingPredictor` collects the publish times of past matching releases, collapses near-duplicate re-uploads (within 12h), and uses the **median interval** between posts to predict the next one. The alert fires at `predicted + 15 min` using an inexact alarm (no `SCHEDULE_EXACT_ALARM` permission needed). Re-armed on every refresh. Requires at least 2 past releases to make a prediction.
+Notifications use AniList's broadcast schedule as the primary signal. When AniList has a `nextAiringEpisode` date for a show, the alert is scheduled at `airing time + 2 hours` — enough time for most groups to process and upload the episode. Quick remux groups (SubsPlease, Erai-raws) typically post within an hour; encode groups take 2–4 hours. The 2-hour default works well for most actively tracked series.
+
+If AniList has no upcoming schedule (completed series, or before the first refresh resolves a match), the app falls back to `PostingPredictor`: it collects past nyaa release timestamps, collapses near-duplicate re-uploads within 12 hours, and uses the **median interval** between posts to predict the next one. Requires at least 2 past releases.
+
+Alerts use inexact alarms (`SCHEDULE_EXACT_ALARM` permission not required) and are re-armed on every refresh. Notifications are skipped for entries with per-show alerts disabled.
+
+### AniList Lookup
+
+Cover art, the display name, and the airing schedule are fetched from AniList by searching the anime title. **For anime with multiple seasons, auto-detection may resolve to the wrong season** (typically the first, most popular one) — which means no airing schedule and no notification.
+
+To fix this, open the entry's edit screen (⋮ → Edit). The **"Resolved:"** line below the AniList ID field shows which entry was matched. If it's wrong, use the **Search by title** field — it queries AniList live and shows up to 8 results with year and airing status so you can pick the exact season. Selecting a result fills the AniList ID automatically.
+
+The next refresh will fetch the correct season's schedule and wire up the notification.
 
 ---
 

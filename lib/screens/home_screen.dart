@@ -98,7 +98,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _resolveCover(WatchEntry entry) async {
     final needCover = entry.coverUrl == null || entry.coverUrl!.isEmpty;
     final needName = entry.animeName == null || entry.animeName!.trim().isEmpty;
-    if (!needCover && !needName) return;
+    // Only fetch airing schedule when the entry has notifications enabled —
+    // no point paying for the API call if we won't use the data.
+    final needAiring = entry.notificationsEnabled &&
+        (entry.nextAiringAt == null ||
+            !entry.nextAiringAt!.isAfter(DateTime.now().toUtc()));
+    if (!needCover && !needName && !needAiring) return;
     final media = entry.anilistId != null
         ? await widget.anilist.fetchById(entry.anilistId!)
         : await widget.anilist.searchByTitle(entry.searchTitle);
@@ -114,6 +119,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (entry.anilistId == null) {
       entry.anilistId = media.id;
+      changed = true;
+    }
+    // Always update airing schedule (null = completed series with no schedule).
+    if (entry.nextAiringAt != media.nextAiringAt) {
+      entry.nextAiringAt = media.nextAiringAt;
+      changed = true;
+    }
+    if (entry.nextEpisode != media.nextEpisode) {
+      entry.nextEpisode = media.nextEpisode;
       changed = true;
     }
     if (!changed) return;
@@ -146,7 +160,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _addManual() async {
     final entry = await Navigator.of(context).push<WatchEntry>(
-      MaterialPageRoute(builder: (_) => const EditEntryScreen()),
+      MaterialPageRoute(
+          builder: (_) => EditEntryScreen(anilist: widget.anilist)),
     );
     if (entry != null) await _commitNew(entry);
   }
@@ -159,7 +174,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _edit(WatchEntry entry) async {
     final updated = await Navigator.of(context).push<WatchEntry>(
-      MaterialPageRoute(builder: (_) => EditEntryScreen(existing: entry)),
+      MaterialPageRoute(
+            builder: (_) => EditEntryScreen(
+              existing: entry,
+              anilist: widget.anilist,
+            )),
     );
     if (updated == null) return;
     setState(() {
@@ -303,7 +322,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _onReorder(int oldIndex, int newIndex) async {
     setState(() {
-      if (newIndex > oldIndex) newIndex -= 1;
       final item = _watchlist.removeAt(oldIndex);
       _watchlist.insert(newIndex, item);
     });
@@ -433,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return ReorderableListView.builder(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 88),
       buildDefaultDragHandles: false,
-      onReorder: _onReorder,
+      onReorderItem: _onReorder,
       itemCount: _watchlist.length,
       itemBuilder: (context, i) => _entryCard(_watchlist[i], i),
     );
@@ -541,7 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 4),
           Wrap(spacing: 6, runSpacing: 4, children: [
-            if (entry.quality.isNotEmpty) _chip(entry.quality),
+            ...[_nextEpisodeChip(entry)].whereType<Widget>(),
             if (unseen.isNotEmpty)
               _chip('${unseen.length} NEW', color: Colors.green),
             if (!entry.notificationsEnabled) _chip('🔕 OFF'),
@@ -650,6 +668,29 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Widget? _nextEpisodeChip(WatchEntry entry) {
+    final airing = entry.nextAiringAt;
+    if (airing == null) return null;
+    final expected = airing.add(NotificationService.airingToNyaaDelay);
+    final diff = expected.toLocal().difference(DateTime.now());
+    if (diff.isNegative) return null;
+
+    final String countdown;
+    if (diff.inDays >= 1) {
+      final h = diff.inHours % 24;
+      countdown = h > 0 ? '${diff.inDays}d ${h}h' : '${diff.inDays}d';
+    } else if (diff.inHours >= 1) {
+      final m = diff.inMinutes % 60;
+      countdown = m > 0 ? '${diff.inHours}h ${m}m' : '${diff.inHours}h';
+    } else {
+      countdown = '${diff.inMinutes}m';
+    }
+
+    final ep = entry.nextEpisode;
+    final label = ep != null ? 'Ep $ep in $countdown' : 'in $countdown';
+    return _chip(label);
   }
 
   Widget _chip(String text, {Color? color}) {
