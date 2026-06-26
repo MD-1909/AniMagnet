@@ -1,4 +1,4 @@
-name: animemagnet
+name: animagnet
 description: Track anime torrent releases from nyaa.si.
 publish_to: "none"
 version: 1.0.0+1

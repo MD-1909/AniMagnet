@@ -1,4 +1,4 @@
-package com.animemagnet.animemagnet
+package com.animagnet.animagnet
 
 import io.flutter.embedding.android.FlutterActivity
 
