@@ -8,6 +8,11 @@ class WatchEntry {
   int? anilistId;
   String? coverUrl; // cached AniList coverImage.large
   String? animeName; // cached clean AniList display name, used for the card title
+  /// Cached UTC broadcast time for the next unaired episode, from AniList.
+  /// Null for completed series or when AniList has no schedule data.
+  DateTime? nextAiringAt;
+  /// Episode number that airs at [nextAiringAt], from AniList.
+  int? nextEpisode;
   final DateTime addedAt; // when the entry was added, used for "last added" sorting
   bool notificationsEnabled; // per-entry predicted-episode alerts toggle
 
@@ -19,6 +24,8 @@ class WatchEntry {
     this.anilistId,
     this.coverUrl,
     this.animeName,
+    this.nextAiringAt,
+    this.nextEpisode,
     DateTime? addedAt,
     this.notificationsEnabled = true,
   }) : addedAt = addedAt ?? DateTime.now();
@@ -74,6 +81,8 @@ class WatchEntry {
         'anilistId': anilistId,
         'coverUrl': coverUrl,
         'animeName': animeName,
+        'nextAiringAt': nextAiringAt?.toUtc().toIso8601String(),
+        'nextEpisode': nextEpisode,
         'addedAt': addedAt.toIso8601String(),
         'notificationsEnabled': notificationsEnabled,
       };
@@ -86,6 +95,10 @@ class WatchEntry {
         anilistId: json['anilistId'] as int?,
         coverUrl: json['coverUrl'] as String?,
         animeName: json['animeName'] as String?,
+        nextAiringAt: json['nextAiringAt'] != null
+            ? DateTime.tryParse(json['nextAiringAt'] as String)
+            : null,
+        nextEpisode: json['nextEpisode'] as int?,
         addedAt: _parseAddedAt(json),
         notificationsEnabled: (json['notificationsEnabled'] ?? true) as bool,
       );

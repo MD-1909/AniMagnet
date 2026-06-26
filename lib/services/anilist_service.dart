@@ -8,7 +8,17 @@ class AniListMedia {
   final int id;
   final String title;
   final String? coverUrl;
-  const AniListMedia({required this.id, required this.title, this.coverUrl});
+  /// UTC time the next episode airs, from AniList's schedule. Null for
+  /// completed/unreleased series that have no upcoming airing date.
+  final DateTime? nextAiringAt;
+  final int? nextEpisode;
+  const AniListMedia({
+    required this.id,
+    required this.title,
+    this.coverUrl,
+    this.nextAiringAt,
+    this.nextEpisode,
+  });
 }
 
 /// Queries AniList's public GraphQL API for cover art.
@@ -55,13 +65,14 @@ class AniListService {
           id
           title { romaji english }
           coverImage { large }
+          nextAiringEpisode { airingAt episode }
         }
       }''';
     final media = await _post(q, {'search': title});
     return _toMedia(media);
   }
 
-  /// Fetch cover art by a known AniList ID.
+  /// Fetch by a known AniList ID.
   Future<AniListMedia?> fetchById(int id) async {
     const q = r'''
       query ($id: Int) {
@@ -69,6 +80,7 @@ class AniListService {
           id
           title { romaji english }
           coverImage { large }
+          nextAiringEpisode { airingAt episode }
         }
       }''';
     final media = await _post(q, {'id': id});
@@ -80,10 +92,24 @@ class AniListService {
     final titles = media['title'] as Map<String, dynamic>?;
     final name = (titles?['english'] ?? titles?['romaji'] ?? '') as String;
     final cover = media['coverImage'] as Map<String, dynamic>?;
+
+    final airing = media['nextAiringEpisode'] as Map<String, dynamic>?;
+    DateTime? nextAiringAt;
+    int? nextEpisode;
+    if (airing != null) {
+      final airingAt = airing['airingAt'];
+      if (airingAt is int) {
+        nextAiringAt = DateTime.fromMillisecondsSinceEpoch(airingAt * 1000, isUtc: true);
+      }
+      nextEpisode = airing['episode'] as int?;
+    }
+
     return AniListMedia(
       id: media['id'] as int,
       title: name,
       coverUrl: cover?['large'] as String?,
+      nextAiringAt: nextAiringAt,
+      nextEpisode: nextEpisode,
     );
   }
 
