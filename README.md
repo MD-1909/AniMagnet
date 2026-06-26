@@ -26,7 +26,7 @@ I wanted a proper mobile app built around my workflow: a watchlist of ongoing an
 - **Seen/unseen tracking** — only unseen releases shown by default; tap to expand watched ones. Opened releases lose the NEW dot automatically
 - **One-tap magnet** — tap a release to open the magnet link directly in your torrent app
 - **Predictive notifications** — schedules a local notification timed to when the episode is expected on nyaa: uses AniList's broadcast schedule (airing time + ~2 h upload delay) when available, falling back to median-interval cadence prediction from past releases
-- **Cover art & airing schedule** — pulled from AniList by title and cached; the resolved anime name is shown in the edit screen so you can spot and fix wrong matches
+- **Cover art & airing schedule** — pulled from AniList by title and cached; the edit screen includes a live AniList search picker so you can find and set the exact season without leaving the app
 - **Title sorting** — sort your watchlist alphabetically
 - **Per-anime notification toggle** — enable or disable release alerts on a per-show basis
 - **AMOLED black UI** with blue accents
@@ -106,10 +106,7 @@ Alerts use inexact alarms (`SCHEDULE_EXACT_ALARM` permission not required) and a
 
 Cover art, the display name, and the airing schedule are fetched from AniList by searching the anime title. **For anime with multiple seasons, auto-detection may resolve to the wrong season** (typically the first, most popular one) — which means no airing schedule and no notification.
 
-To fix this, open the entry's edit screen (⋮ → Edit). The **"Resolved:"** line below the AniList ID field shows which entry was matched. If it's wrong:
-
-1. Find the correct season on [anilist.co](https://anilist.co) — the ID is the number in the URL (`anilist.co/anime/`**170942**/...)
-2. Paste it into the **AniList ID** field and save
+To fix this, open the entry's edit screen (⋮ → Edit). The **"Resolved:"** line below the AniList ID field shows which entry was matched. If it's wrong, use the **Search by title** field — it queries AniList live and shows up to 8 results with year and airing status so you can pick the exact season. Selecting a result fills the AniList ID automatically.
 
 The next refresh will fetch the correct season's schedule and wire up the notification.
 
