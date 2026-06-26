@@ -42,16 +42,20 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final e = widget.existing;
+    final newId = int.tryParse(_anilistId.text.trim());
+    final idChanged = newId != e?.anilistId;
     final result = WatchEntry(
       id: e?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       title: _title.text.trim(),
       group: _group.text.trim(),
       quality: _quality.text.trim(),
-      anilistId: int.tryParse(_anilistId.text.trim()),
-      // Keep cached cover unless the AniList id changed.
-      coverUrl: (int.tryParse(_anilistId.text.trim()) == e?.anilistId)
-          ? e?.coverUrl
-          : null,
+      anilistId: newId,
+      // Clear all AniList caches when the ID changes so a fresh fetch
+      // picks up the correct season's name and airing schedule.
+      coverUrl: idChanged ? null : e?.coverUrl,
+      animeName: idChanged ? null : e?.animeName,
+      nextAiringAt: idChanged ? null : e?.nextAiringAt,
+      nextEpisode: idChanged ? null : e?.nextEpisode,
       addedAt: e?.addedAt,
       notificationsEnabled: e?.notificationsEnabled ?? true,
     );
@@ -110,6 +114,19 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
                 return int.tryParse(v.trim()) == null ? 'Must be a number' : null;
               },
             ),
+            if (widget.existing?.animeName != null) ...[
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Resolved: ${widget.existing!.animeName}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: _save,
