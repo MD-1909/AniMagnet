@@ -1,4 +1,4 @@
-package com.animagnet.animagnet
+package com.whytshadow.animagnet
 
 import io.flutter.embedding.android.FlutterActivity
 

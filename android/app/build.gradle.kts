@@ -12,7 +12,7 @@ val keyProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.animagnet.animagnet"
+    namespace = "com.whytshadow.animagnet"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -24,7 +24,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.animagnet.animagnet"
+        applicationId = "com.whytshadow.animagnet"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
