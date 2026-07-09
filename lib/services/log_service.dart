@@ -41,7 +41,7 @@ class LogService {
   Future<String?> _export() async {
     try {
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/animagnet.log');
+      final file = File('${dir.path}/animagnet_log.txt');
       await file.writeAsString(_entries.join('\n'));
       return file.path;
     } catch (e) {

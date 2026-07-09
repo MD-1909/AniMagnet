@@ -29,6 +29,7 @@ I wanted a proper mobile app built around my workflow: a watchlist of ongoing an
 - **Cover art & airing schedule** — pulled from AniList by title and cached; the edit screen includes a live AniList search picker so you can find and set the exact season without leaving the app
 - **Title sorting** — sort your watchlist alphabetically
 - **Per-anime notification toggle** — enable or disable release alerts on a per-show basis
+- **Debug log export** — ⋮ → Export debug log writes a timestamped `.txt` of all AniList, notification, and nyaa events and opens the share sheet
 - **AMOLED black UI** with blue accents
 
 ---
@@ -86,6 +87,7 @@ lib/
     storage_service.dart       shared_preferences (watchlist + seen GUIDs)
     posting_predictor.dart     median-interval prediction of next episode post time (fallback)
     notification_service.dart  schedules episode alerts via exact AlarmManager alarms
+    log_service.dart           in-memory event log (ANIME/ANILIST/NOTIFY/NYAA), export as .txt
   screens/
     home_screen.dart           anime cards: art left, unseen releases right, expand watched
     add_entry_screen.dart      search → pick version → save pattern
@@ -101,6 +103,8 @@ Notifications use AniList's broadcast schedule as the primary signal. When AniLi
 If AniList has no upcoming schedule (completed series, or before the first refresh resolves a match), the app falls back to `PostingPredictor`: it collects past nyaa release timestamps, collapses near-duplicate re-uploads within 12 hours, and uses the **median interval** between posts to predict the next one. Requires at least 2 past releases.
 
 Alerts use exact alarms (`SCHEDULE_EXACT_ALARM` permission, granted via the system Settings prompt on first launch). On Samsung One UI the app also requests battery optimization exemption — without it, Samsung silently blocks the `AlarmManager` broadcast receiver even when exact alarm permission is granted. Notifications are re-armed on every refresh and skipped for entries with per-show alerts disabled.
+
+**Episode window guard** — when an episode airs, AniList immediately advances `nextAiringEpisode` to the following week. Opening the app during the 2-hour upload window (e.g. 5 minutes after broadcast) would normally cause the notification to jump to next week's episode. Instead, the app holds the current episode's airing time until the +2 h window has closed, then fetches the next episode's schedule on the following refresh. For entries added mid-window, a reverse-calculation detects that the next scheduled episode is more than 6 days 22 hours away, infers the previous episode just aired, and fires the notification at the correct time.
 
 ### AniList Lookup
 
