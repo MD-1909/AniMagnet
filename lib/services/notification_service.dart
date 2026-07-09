@@ -85,7 +85,25 @@ class NotificationService {
     if (!_ready) return;
     const testId = 0x7ffffffe; // fixed id so it's easy to cancel
     await _plugin.cancel(id: testId);
-  
+
+    // Immediate show — confirms channel + POST_NOTIFICATIONS are working
+    // regardless of alarm permission. Remove once debugging is done.
+    await _plugin.show(
+      0x7ffffffd,
+      '[TEST] Notification channel works',
+      'If you see this, POST_NOTIFICATIONS is granted and the channel is fine. '
+      'The scheduled one fires in ${fireIn.inSeconds}s — if it doesn\'t arrive, '
+      'check Alarms & Reminders permission and battery optimization.',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+    );
+    
     final fireAt = DateTime.now().add(fireIn);
     final exact = await _canUseExactAlarms();
   
