@@ -164,7 +164,7 @@ class NotificationService {
     try {
       await _plugin.zonedSchedule(
         id: id,
-        title: 'New ${entry.title} episode likely out',
+        title: 'New ${entry.animeName ?? entry.title} episode likely out',
         body: detail,
         scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
         notificationDetails: const NotificationDetails(
