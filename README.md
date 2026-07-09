@@ -6,7 +6,7 @@
 
 A Flutter Android app for tracking and downloading anime torrent releases from [nyaa.si](https://nyaa.si).
 
-<img src="screenshots/preview.jpg?v=2" width="320" alt="AniMagnet home screen"/>
+<img src="screenshots/preview.jpg?v=3" width="320" alt="AniMagnet home screen"/>
 
 ---
 
