@@ -188,7 +188,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _addManual() async {
     final entry = await Navigator.of(context).push<WatchEntry>(
       MaterialPageRoute(
-          builder: (_) => EditEntryScreen(anilist: widget.anilist)),
+          builder: (_) =>
+              EditEntryScreen(anilist: widget.anilist, nyaa: widget.nyaa)),
     );
     if (entry != null) await _commitNew(entry);
   }
@@ -203,10 +204,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _edit(WatchEntry entry) async {
     final updated = await Navigator.of(context).push<WatchEntry>(
       MaterialPageRoute(
-            builder: (_) => EditEntryScreen(
-              existing: entry,
-              anilist: widget.anilist,
-            )),
+          builder: (_) => EditEntryScreen(
+                existing: entry,
+                anilist: widget.anilist,
+                nyaa: widget.nyaa,
+              )),
     );
     if (updated == null) return;
     LogService.log('ANIME', 'Edited "${updated.displayTitle}" (anilistId=${updated.anilistId})');

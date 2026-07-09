@@ -189,6 +189,15 @@ class NyaaService {
   ///   1. Strip leading [Group] / (Group) tag.
   ///   2. Cut at the first episode marker (` - 01`, ` - 01v2`, etc.).
   ///   3. Strip any remaining trailing quality / hash tokens.
+  /// Maps a release title to one of the standard quality strings used by the
+  /// quality picker (480p, 720p, 1080p), or null when none is detected.
+  static String? extractStandardQuality(String title) {
+    if (title.contains('1080')) return '1080p';
+    if (title.contains('720')) return '720p';
+    if (title.contains('480')) return '480p';
+    return null;
+  }
+
   static String extractNyaaTitle(String releaseTitle) {
     var t = releaseTitle.trim();
     // 1. Remove leading [Group] or (Group)
