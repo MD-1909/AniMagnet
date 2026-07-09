@@ -121,7 +121,11 @@ class NotificationService {
             .subtract(const Duration(days: 7))
             .add(airingToNyaaDelay)
             .toLocal();
-        final chosen = (prevCandidate.isAfter(now) && prevCandidate.isBefore(candidate))
+        // prevCandidate must be within the next 2h — if it's days away the
+        // previous episode hasn't aired yet (show has a non-weekly gap).
+        final prevIsImminent = prevCandidate.isAfter(now) &&
+            prevCandidate.isBefore(now.add(airingToNyaaDelay));
+        final chosen = (prevIsImminent && prevCandidate.isBefore(candidate))
             ? prevCandidate
             : candidate;
         fireAt = chosen;

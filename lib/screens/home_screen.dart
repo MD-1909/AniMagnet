@@ -711,7 +711,11 @@ class _HomeScreenState extends State<HomeScreen> {
         .subtract(const Duration(days: 7))
         .add(NotificationService.airingToNyaaDelay)
         .toLocal();
-    final usePrev = prevWindowEnd.isAfter(now);
+    // Only treat it as "previous episode just aired" if prevWindowEnd is
+    // within the next 2h — otherwise the gap is non-weekly and prevWindowEnd
+    // is just a future date that happens to be 7 days before the next episode.
+    final usePrev = prevWindowEnd.isAfter(now) &&
+        prevWindowEnd.isBefore(now.add(NotificationService.airingToNyaaDelay));
 
     final expected =
         usePrev ? prevWindowEnd : airing.add(NotificationService.airingToNyaaDelay).toLocal();
