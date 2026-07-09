@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -55,14 +56,33 @@ class NotificationService {
     _ready = true;
   }
 
-  /// Ask for POST_NOTIFICATIONS (Android 13+) and SCHEDULE_EXACT_ALARM
-  /// (Android 12+). The exact alarm request opens the system Settings page;
-  /// the user only sees it once unless they navigate there themselves.
+  static const _batteryChannel = MethodChannel('animagnet/battery');
+
+  /// Ask for POST_NOTIFICATIONS, SCHEDULE_EXACT_ALARM, and battery optimization
+  /// exemption. The exact alarm and battery requests open system Settings pages;
+  /// the user only sees each once unless they navigate there themselves.
   Future<void> requestPermission() async {
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     await android?.requestNotificationsPermission();
     await android?.requestExactAlarmsPermission();
+    await _requestBatteryExemption();
+  }
+
+  /// Opens the system dialog asking the user to exempt this app from battery
+  /// optimization. Required on Samsung One UI for AlarmManager broadcasts to
+  /// fire reliably — without it, the ScheduledNotificationReceiver is silently
+  /// blocked even with SCHEDULE_EXACT_ALARM granted.
+  Future<void> _requestBatteryExemption() async {
+    try {
+      final exempt =
+          await _batteryChannel.invokeMethod<bool>('isIgnoringBatteryOptimizations') ?? false;
+      if (!exempt) {
+        await _batteryChannel.invokeMethod('requestIgnoreBatteryOptimizations');
+      }
+    } catch (e) {
+      debugPrint('[Notify] battery exemption request failed: $e');
+    }
   }
 
   Future<bool> _canUseExactAlarms() async {
@@ -79,7 +99,7 @@ class NotificationService {
     required int anilistId,
     required DateTime nextAiringAt,
     required int episode,
-    Duration fireIn = const Duration(minutes: 1),
+    Duration fireIn = const Duration(seconds: 10),
   }) async {
     if (!_ready) return 'NotificationService not ready';
     const testId = 0x7ffffffe;
@@ -99,17 +119,39 @@ class NotificationService {
     );
 
     final fireAt = DateTime.now().add(fireIn);
+    final tzFireAt = tz.TZDateTime.from(fireAt, tz.local);
     final exact = await _canUseExactAlarms();
+    // alarmClock mode: highest-priority alarm, shows in system clock, cannot
+    // be deferred by OEM battery managers. For testing only.
     final mode = exact
-        ? AndroidScheduleMode.exactAllowWhileIdle
+        ? AndroidScheduleMode.alarmClock
         : AndroidScheduleMode.inexactAllowWhileIdle;
+
+    // Dart-timer path: fires only while the app is open, but bypasses
+    // AlarmManager entirely. If this fires but zonedSchedule doesn't,
+    // the issue is AlarmManager / One UI blocking the broadcast receiver.
+    Future.delayed(fireIn, () {
+      _plugin.show(
+        id: 0x7ffffffc,
+        title: '[TEST] Dart timer fired ✓',
+        body: 'Future.delayed worked — if AlarmManager one is missing, '
+            'One UI is blocking the broadcast receiver',
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId, _channelName,
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+        ),
+      );
+    });
 
     try {
       await _plugin.zonedSchedule(
         id: testId,
-        title: '[TEST] $title ep $episode',
-        body: 'Scheduled ${exact ? "exact" : "inexact"} alarm — airing was ${nextAiringAt.toLocal()}',
-        scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
+        title: '[TEST] AlarmManager fired ✓',
+        body: 'zonedSchedule (${exact ? "alarmClock" : "inexact"}) worked',
+        scheduledDate: tzFireAt,
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             _channelId, _channelName,
@@ -119,10 +161,10 @@ class NotificationService {
         ),
         androidScheduleMode: mode,
       );
-      final timeStr = '${fireAt.hour}:${fireAt.minute.toString().padLeft(2, '0')}:${fireAt.second.toString().padLeft(2, '0')}';
-      return 'Scheduled (${exact ? "exact" : "INEXACT ⚠️"}) for $timeStr';
+      return 'Both scheduled for +${fireIn.inSeconds}s — keep app open. '
+          'Expect 2 notifs: "Dart timer" + "AlarmManager"';
     } catch (e) {
-      return 'scheduleTest FAILED: $e';
+      return 'zonedSchedule FAILED: $e';
     }
   }
 
