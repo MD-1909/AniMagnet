@@ -89,12 +89,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() => _fetches[entry.id] = _Fetch(releases: releases));
       LogService.log('NYAA', '"${entry.displayTitle}" → ${releases.length} release(s)');
-      // Schedule immediately with whatever airing time is already cached.
-      // Then resolve AniList (which may update nextAiringAt) and reschedule
-      // so the notification uses the fresh data rather than the stale cache.
+      // Schedule immediately with cached airing data, then re-arm only if
+      // _resolveCover fetched a different nextAiringAt from AniList.
+      final airingBefore = entry.nextAiringAt;
       unawaited(widget.notifications.scheduleForEntry(entry, releases));
       unawaited(_resolveCover(entry).then((_) {
-        if (mounted) unawaited(widget.notifications.scheduleForEntry(entry, releases));
+        if (mounted && entry.nextAiringAt != airingBefore) {
+          unawaited(widget.notifications.scheduleForEntry(entry, releases));
+        }
       }));
     } catch (e) {
       if (!mounted) return;
