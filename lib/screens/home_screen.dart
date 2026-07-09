@@ -68,9 +68,25 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _watchlist = widget.storage.loadWatchlist();
     _seen = widget.storage.loadSeen();
+    _sortMode = _parseSortMode(widget.storage.loadSortMode());
+    _sortAsc = widget.storage.loadSortAsc();
     widget.notifications.requestPermission();
     _refreshAll();
   }
+
+  static _SortMode? _parseSortMode(String? raw) => switch (raw) {
+        'title' => _SortMode.title,
+        'lastRelease' => _SortMode.lastRelease,
+        'lastAdded' => _SortMode.lastAdded,
+        _ => null,
+      };
+
+  static String? _sortModeKey(_SortMode? mode) => switch (mode) {
+        _SortMode.title => 'title',
+        _SortMode.lastRelease => 'lastRelease',
+        _SortMode.lastAdded => 'lastAdded',
+        null => null,
+      };
 
   // ---- Data ---------------------------------------------------------------
 
@@ -320,6 +336,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     _applySort();
     await widget.storage.saveWatchlist(_watchlist);
+    await widget.storage.saveSortPrefs(_sortModeKey(_sortMode), _sortAsc);
   }
 
   void _applySort() {
@@ -356,8 +373,10 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       final item = _watchlist.removeAt(oldIndex);
       _watchlist.insert(newIndex, item);
+      _sortMode = null;
     });
     await widget.storage.saveWatchlist(_watchlist);
+    await widget.storage.saveSortPrefs(null, true);
   }
 
   Future<void> _toggleNotifications(WatchEntry entry) async {
