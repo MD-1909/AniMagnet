@@ -73,64 +73,56 @@ class NotificationService {
 
   int _idFor(WatchEntry entry) => entry.id.hashCode & 0x7fffffff;
 
-  /// Schedules a test notification using a short delay instead of [airingToNyaaDelay].
-  /// Pass [fireIn] to control how soon it fires (default: 1 minute from now).
-  Future<void> scheduleTest({
+  /// Schedules a test notification. Returns a status string to show the user.
+  Future<String> scheduleTest({
     required String title,
     required int anilistId,
     required DateTime nextAiringAt,
     required int episode,
     Duration fireIn = const Duration(minutes: 1),
   }) async {
-    if (!_ready) return;
-    const testId = 0x7ffffffe; // fixed id so it's easy to cancel
+    if (!_ready) return 'NotificationService not ready';
+    const testId = 0x7ffffffe;
     await _plugin.cancel(id: testId);
 
-    // Immediate show — confirms channel + POST_NOTIFICATIONS are working
-    // regardless of alarm permission. Remove once debugging is done.
     await _plugin.show(
       id: 0x7ffffffd,
-      title: '[TEST] Notification channel works',
-      body: 'Channel is fine — if the scheduled one doesn\'t arrive in ${fireIn.inSeconds}s, '
-          'check Alarms & Reminders permission and battery optimization.',
+      title: '[TEST] Channel check',
+      body: 'Immediate notification — scheduled one follows in ${fireIn.inSeconds}s',
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
+          _channelId, _channelName,
           importance: Importance.high,
           priority: Priority.high,
         ),
       ),
     );
-    
+
     final fireAt = DateTime.now().add(fireIn);
     final exact = await _canUseExactAlarms();
-  
-    debugPrint('[Notify][TEST] Scheduling test notif for "$title" ep $episode '
-        '(airing: $nextAiringAt) → fires at $fireAt');
-  
+    final mode = exact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
     try {
       await _plugin.zonedSchedule(
         id: testId,
-        title: '[TEST] New $title ep $episode likely out',
-        body: 'AniMagnet notification test — airing was ${nextAiringAt.toLocal()}',
+        title: '[TEST] $title ep $episode',
+        body: 'Scheduled ${exact ? "exact" : "inexact"} alarm — airing was ${nextAiringAt.toLocal()}',
         scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
-            _channelId,
-            _channelName,
-            channelDescription: 'Predicted new-episode alerts',
+            _channelId, _channelName,
             importance: Importance.high,
             priority: Priority.high,
           ),
         ),
-        androidScheduleMode: exact
-            ? AndroidScheduleMode.exactAllowWhileIdle
-            : AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: mode,
       );
-      debugPrint('[Notify][TEST] Scheduled — will fire in ${fireIn.inSeconds}s');
+      final timeStr = '${fireAt.hour}:${fireAt.minute.toString().padLeft(2, '0')}:${fireAt.second.toString().padLeft(2, '0')}';
+      return 'Scheduled (${exact ? "exact" : "INEXACT ⚠️"}) for $timeStr';
     } catch (e) {
-      debugPrint('[Notify][TEST] Failed: $e');
+      return 'scheduleTest FAILED: $e';
     }
   }
 
