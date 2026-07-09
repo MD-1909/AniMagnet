@@ -89,12 +89,11 @@ class NotificationService {
     // Immediate show — confirms channel + POST_NOTIFICATIONS are working
     // regardless of alarm permission. Remove once debugging is done.
     await _plugin.show(
-      0x7ffffffd,
-      '[TEST] Notification channel works',
-      'If you see this, POST_NOTIFICATIONS is granted and the channel is fine. '
-      'The scheduled one fires in ${fireIn.inSeconds}s — if it doesn\'t arrive, '
-      'check Alarms & Reminders permission and battery optimization.',
-      const NotificationDetails(
+      id: 0x7ffffffd,
+      title: '[TEST] Notification channel works',
+      body: 'Channel is fine — if the scheduled one doesn\'t arrive in ${fireIn.inSeconds}s, '
+          'check Alarms & Reminders permission and battery optimization.',
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
           _channelName,
