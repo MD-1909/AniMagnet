@@ -139,23 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _testNotif() async {
-    _snack('Fetching next airing episode from AniList...');
-    final next = await widget.anilist.fetchNextGlobalAiring();
-    if (next == null) {
-      _snack('AniList returned nothing — check your connection');
-      return;
-    }
-    final status = await widget.notifications.scheduleTest(
-      title: next.title,
-      anilistId: next.mediaId,
-      nextAiringAt: next.airingAt,
-      episode: next.episode,
-    );
-    _snack('"${next.title}" ep ${next.episode} — $status');
-  }
-
-
   Future<void> _openMagnet(Release release) async {
     try {
       final ok = await launchUrl(
@@ -386,12 +369,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return AppBar(
       title: const Text('AniMagnet'),
       actions: [
-        // In _HomeScreenState build(), add to AppBar actions temporarily:
-        IconButton(
-          icon: const Icon(Icons.notifications_active),
-          tooltip: 'Test notification',
-          onPressed: _testNotif,
-        ),
         IconButton(
           tooltip: 'Refresh',
           icon: const Icon(Icons.refresh),
