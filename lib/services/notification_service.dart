@@ -109,10 +109,24 @@ class NotificationService {
     // (e.g. completed series, or before AniList data has been fetched).
     DateTime? fireAt;
     final nextAiring = entry.nextAiringAt;
-    if (nextAiring != null && nextAiring.isAfter(now.toUtc())) {
-      fireAt = nextAiring.add(airingToNyaaDelay).toLocal();
-      debugPrint('[Notify] "${entry.title}" using AniList airing time: $nextAiring');
-    } else {
+    if (nextAiring != null) {
+      final candidate = nextAiring.add(airingToNyaaDelay).toLocal();
+      if (candidate.isAfter(now)) {
+        // If ep3 is >6d 22h away the previous episode aired within the last
+        // 2h window. Prefer that sooner notification over scheduling ep3+2h,
+        // which covers fresh adds and entries whose nextAiringAt was already
+        // bumped to the next episode before this window-guard was in place.
+        final prevCandidate = nextAiring
+            .subtract(const Duration(days: 7))
+            .add(airingToNyaaDelay)
+            .toLocal();
+        fireAt = (prevCandidate.isAfter(now) && prevCandidate.isBefore(candidate))
+            ? prevCandidate
+            : candidate;
+        debugPrint('[Notify] "${entry.title}" using AniList airing time: $nextAiring');
+      }
+    }
+    if (fireAt == null) {
       final dates =
           releases.map((r) => r.pubDate).whereType<DateTime>().toList();
       final predicted = PostingPredictor.predictNext(dates, now);
