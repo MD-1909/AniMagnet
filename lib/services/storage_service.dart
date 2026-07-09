@@ -12,6 +12,8 @@ import '../models/watch_entry.dart';
 class StorageService {
   static const _kWatchlist = 'watchlist';
   static const _kSeen = 'seen_links';
+  static const _kSortMode = 'sort_mode';
+  static const _kSortAsc = 'sort_asc';
 
   late final SharedPreferences _prefs;
 
@@ -66,4 +68,18 @@ class StorageService {
   }
 
   bool isSeen(String guid) => loadSeen().contains(guid);
+
+  // ---- Sort prefs ---------------------------------------------------------
+
+  String? loadSortMode() => _prefs.getString(_kSortMode);
+  bool loadSortAsc() => _prefs.getBool(_kSortAsc) ?? true;
+
+  Future<void> saveSortPrefs(String? mode, bool asc) async {
+    if (mode == null) {
+      await _prefs.remove(_kSortMode);
+    } else {
+      await _prefs.setString(_kSortMode, mode);
+    }
+    await _prefs.setBool(_kSortAsc, asc);
+  }
 }

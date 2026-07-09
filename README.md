@@ -28,7 +28,7 @@ I wanted a proper mobile app built around my workflow: a watchlist of ongoing an
 - **One-tap magnet** — tap a release to open the magnet link directly in your torrent app
 - **Predictive notifications** — schedules a local notification timed to when the episode is expected on nyaa: uses AniList's broadcast schedule (airing time + ~2 h upload delay) when available, falling back to median-interval cadence prediction from past releases
 - **Cover art & airing schedule** — pulled from AniList by title and cached; the edit screen includes a live AniList search picker so you can find and set the exact season without leaving the app
-- **Title sorting** — sort your watchlist alphabetically
+- **Sorting** — sort your watchlist by title, last episode release, or last added; sort mode and direction are persisted across restarts; manually drag-reordering an entry clears the active sort
 - **Per-anime notification toggle** — enable or disable release alerts on a per-show basis
 - **Debug log export** — ⋮ → Export debug log writes a timestamped `.txt` of all AniList, notification, and nyaa events and opens the share sheet
 - **AMOLED black UI** with blue accents
