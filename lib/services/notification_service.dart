@@ -73,6 +73,50 @@ class NotificationService {
 
   int _idFor(WatchEntry entry) => entry.id.hashCode & 0x7fffffff;
 
+  /// Schedules a test notification using a short delay instead of [airingToNyaaDelay].
+  /// Pass [fireIn] to control how soon it fires (default: 1 minute from now).
+  Future<void> scheduleTest({
+    required String title,
+    required int anilistId,
+    required DateTime nextAiringAt,
+    required int episode,
+    Duration fireIn = const Duration(minutes: 1),
+  }) async {
+    if (!_ready) return;
+    const testId = 0x7ffffffe; // fixed id so it's easy to cancel
+    await _plugin.cancel(id: testId);
+  
+    final fireAt = DateTime.now().add(fireIn);
+    final exact = await _canUseExactAlarms();
+  
+    debugPrint('[Notify][TEST] Scheduling test notif for "$title" ep $episode '
+        '(airing: $nextAiringAt) → fires at $fireAt');
+  
+    try {
+      await _plugin.zonedSchedule(
+        id: testId,
+        title: '[TEST] New $title ep $episode likely out',
+        body: 'AniMagnet notification test — airing was ${nextAiringAt.toLocal()}',
+        scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId,
+            _channelName,
+            channelDescription: 'Predicted new-episode alerts',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+        ),
+        androidScheduleMode: exact
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+      debugPrint('[Notify][TEST] Scheduled — will fire in ${fireIn.inSeconds}s');
+    } catch (e) {
+      debugPrint('[Notify][TEST] Failed: $e');
+    }
+  }
+
   /// (Re)schedule the episode alert for one entry. Re-scheduling replaces any
   /// previous alert for the same entry, so this is safe to call on every refresh.
   Future<void> scheduleForEntry(WatchEntry entry, List<Release> releases) async {
