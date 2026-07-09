@@ -35,55 +35,6 @@ class AniListService {
   final http.Client _client;
   AniListService([http.Client? client]) : _client = client ?? http.Client();
 
-  /// Fetches the single next episode airing globally across all anime on AniList.
-  /// Useful for testing the notification pipeline without waiting a week.
-  Future<({int mediaId, String title, DateTime airingAt, int episode})?> fetchNextGlobalAiring() async {
-    const q = r'''
-      query {
-        Page(perPage: 1) {
-          airingSchedules(notYetAired: true, sort: TIME) {
-            airingAt
-            episode
-            media {
-              id
-              title { romaji english }
-            }
-          }
-        }
-      }''';
-    try {
-      final resp = await _client.post(
-        _endpoint,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Android) AniMagnet/1.0 (+flutter http)',
-        },
-        body: jsonEncode({'query': q}),
-      ).timeout(const Duration(seconds: 15));
-      if (resp.statusCode != 200) return null;
-      final body = jsonDecode(resp.body) as Map<String, dynamic>;
-      final schedules = body['data']?['Page']?['airingSchedules'] as List?;
-      if (schedules == null || schedules.isEmpty) return null;
-      final s = schedules.first as Map<String, dynamic>;
-      final media = s['media'] as Map<String, dynamic>;
-      final titles = media['title'] as Map<String, dynamic>;
-      final title = (titles['english'] ?? titles['romaji'] ?? 'Unknown') as String;
-      final airingAt = DateTime.fromMillisecondsSinceEpoch(
-          (s['airingAt'] as int) * 1000, isUtc: true);
-      return (
-        mediaId: media['id'] as int,
-        title: title,
-        airingAt: airingAt,
-        episode: s['episode'] as int,
-      );
-    } catch (e) {
-      debugPrint('[AniList] fetchNextGlobalAiring failed: $e');
-      return null;
-    }
-  }
-
-  
   Future<Map<String, dynamic>?> _post(String query, Map<String, dynamic> vars) async {
     try {
       final resp = await _client
