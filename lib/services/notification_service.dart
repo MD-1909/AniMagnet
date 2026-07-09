@@ -8,9 +8,9 @@ import '../models/release.dart';
 import '../models/watch_entry.dart';
 import 'posting_predictor.dart';
 
-/// Schedules pre-emptive local notifications for each anime, timed to the
-/// predicted next-episode post time + a 15-minute buffer (to absorb delays).
-/// Uses OS-level scheduled alarms, so no background polling is needed.
+/// Schedules local notifications for each anime, timed to when the episode
+/// is expected on nyaa. Uses exact alarms when the permission is granted
+/// (survives Doze mode), falling back to inexact alarms otherwise.
 class NotificationService {
   static const _channelId = 'episode_alerts';
   static const _channelName = 'Episode alerts';
@@ -55,16 +55,25 @@ class NotificationService {
     _ready = true;
   }
 
-  /// Ask for the Android 13+ POST_NOTIFICATIONS runtime permission.
+  /// Ask for POST_NOTIFICATIONS (Android 13+) and SCHEDULE_EXACT_ALARM
+  /// (Android 12+). The exact alarm request opens the system Settings page;
+  /// the user only sees it once unless they navigate there themselves.
   Future<void> requestPermission() async {
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     await android?.requestNotificationsPermission();
+    await android?.requestExactAlarmsPermission();
+  }
+
+  Future<bool> _canUseExactAlarms() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    return await android?.canScheduleExactNotifications() ?? false;
   }
 
   int _idFor(WatchEntry entry) => entry.id.hashCode & 0x7fffffff;
 
-  /// (Re)schedule the predicted alert for one entry. Re-scheduling replaces any
+  /// (Re)schedule the episode alert for one entry. Re-scheduling replaces any
   /// previous alert for the same entry, so this is safe to call on every refresh.
   Future<void> scheduleForEntry(WatchEntry entry, List<Release> releases) async {
     if (!_ready) return;
@@ -102,6 +111,14 @@ class NotificationService {
           ].where((s) => s.isNotEmpty).join(' ')} release.'
         : 'Open AniMagnet to check for the new release.';
 
+    // Prefer exact alarms — they survive Doze mode and OEM battery savers.
+    // Fall back to inexact if the user hasn't granted SCHEDULE_EXACT_ALARM.
+    final exact = await _canUseExactAlarms();
+    final scheduleMode = exact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+    debugPrint('[Notify] "${entry.title}" using ${exact ? "exact" : "inexact"} alarm, firing at $fireAt');
+    
     try {
       await _plugin.zonedSchedule(
         id: id,
@@ -117,7 +134,7 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: scheduleMode,
       );
       debugPrint('[Notify] "${entry.title}" scheduled for $fireAt');
     } catch (e) {
