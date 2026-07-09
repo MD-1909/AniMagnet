@@ -6,7 +6,7 @@
 
 A Flutter Android app for tracking and downloading anime torrent releases from [nyaa.si](https://nyaa.si).
 
-<img src="screenshots/preview.jpg" width="320" alt="AniMagnet home screen"/>
+<img src="screenshots/preview.jpg?v=2" width="320" alt="AniMagnet home screen"/>
 
 ---
 
@@ -85,7 +85,7 @@ lib/
     anilist_service.dart       GraphQL cover art + airing schedule lookup
     storage_service.dart       shared_preferences (watchlist + seen GUIDs)
     posting_predictor.dart     median-interval prediction of next episode post time (fallback)
-    notification_service.dart  schedules episode alerts via inexact alarms
+    notification_service.dart  schedules episode alerts via exact AlarmManager alarms
   screens/
     home_screen.dart           anime cards: art left, unseen releases right, expand watched
     add_entry_screen.dart      search → pick version → save pattern
@@ -100,7 +100,7 @@ Notifications use AniList's broadcast schedule as the primary signal. When AniLi
 
 If AniList has no upcoming schedule (completed series, or before the first refresh resolves a match), the app falls back to `PostingPredictor`: it collects past nyaa release timestamps, collapses near-duplicate re-uploads within 12 hours, and uses the **median interval** between posts to predict the next one. Requires at least 2 past releases.
 
-Alerts use inexact alarms (`SCHEDULE_EXACT_ALARM` permission not required) and are re-armed on every refresh. Notifications are skipped for entries with per-show alerts disabled.
+Alerts use exact alarms (`SCHEDULE_EXACT_ALARM` permission, granted via the system Settings prompt on first launch). On Samsung One UI the app also requests battery optimization exemption — without it, Samsung silently blocks the `AlarmManager` broadcast receiver even when exact alarm permission is granted. Notifications are re-armed on every refresh and skipped for entries with per-show alerts disabled.
 
 ### AniList Lookup
 
