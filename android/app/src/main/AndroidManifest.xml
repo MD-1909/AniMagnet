@@ -1,10 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Local notifications (predictive episode alerts). Scheduled via inexact alarms,
-         so no SCHEDULE_EXACT_ALARM is needed. The flutter_local_notifications plugin
-         contributes the alarm/boot receivers via manifest merge. -->
+    <!-- Local notifications (episode alerts). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Exact alarms survive Doze mode; required on Android 12+ for reliable
+         episode alerts. The user is prompted to grant this in Settings if needed. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <application
         android:label="AniMagnet"
         android:name="${applicationName}"
