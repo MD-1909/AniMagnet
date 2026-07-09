@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/watch_entry.dart';
 import '../services/anilist_service.dart';
+import '../services/log_service.dart';
 import '../services/nyaa_service.dart';
 
 /// Manual add/edit form for a watchlist entry. Returns the saved [WatchEntry]
@@ -138,6 +139,7 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
       _groupReleaseCount = null;
       _availableQualities = {};
     });
+    LogService.log('NYAA', 'Group check: "$title" + "$group"');
     try {
       // Fetch with group filter, no quality filter, to discover available qualities.
       final temp = WatchEntry(id: '', title: title, group: group, quality: '');
@@ -148,12 +150,15 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
         final q = NyaaService.extractStandardQuality(r.title);
         if (q != null) qs.add(q);
       }
+      LogService.log('NYAA',
+          'Group check "$group" → ${releases.length} release(s), qualities: ${qs.isEmpty ? "none detected" : qs.join(", ")}');
       setState(() {
         _checkingGroup = false;
         _groupReleaseCount = releases.length;
         _availableQualities = qs;
       });
-    } catch (_) {
+    } catch (e) {
+      LogService.log('NYAA', 'Group check "$group" failed: $e');
       if (!mounted) return;
       setState(() => _checkingGroup = false);
     }

@@ -20,8 +20,9 @@ I wanted a proper mobile app built around my workflow: a watchlist of ongoing an
 
 ## Features
 
-- **Watchlist** — track ongoing anime by title, release group, and quality (e.g. `Solo Leveling · SubsPlease · 1080p`)
-- **Auto-add** — search a title, pick the release version you want from episode 1 results, and the pattern is saved automatically
+- **Watchlist** — track ongoing anime by release group and quality; the card title is always the clean AniList display name, not the raw search string
+- **Auto-add** — search a title, pick the release version you want from episode 1 results; the episode-1 release title is parsed to extract the exact nyaa search string (strips group tag, episode marker, quality token) so future RSS queries find the right season reliably
+- **Group & quality pickers** — the edit screen offers one-tap chips for the common release groups (ASW, DKB, Judas, ToonsHub) plus an "Other" text field; picking any group triggers a live nyaa check to confirm that group actually carries this anime, with a count of matching releases and per-quality availability greying in the quality picker
 - **Release feed** — on launch and pull-to-refresh, queries each entry's nyaa RSS, filters to matching releases (newest first), shows size and publish date
 - **Seen/unseen tracking** — only unseen releases shown by default; tap to expand watched ones. Opened releases lose the NEW dot automatically
 - **One-tap magnet** — tap a release to open the magnet link directly in your torrent app
