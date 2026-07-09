@@ -131,17 +131,22 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextFormField(
-              controller: _title,
-              decoration: const InputDecoration(
-                labelText: 'Anime title',
-                hintText: 'e.g. Marriage Toxin',
-                border: OutlineInputBorder(),
+            // Title is only editable when adding a new entry manually.
+            // For existing entries the nyaa search title is locked in; the
+            // AniList display name (animeName) is what shows in the UI.
+            if (!editing) ...[
+              TextFormField(
+                controller: _title,
+                decoration: const InputDecoration(
+                  labelText: 'Nyaa search title',
+                  hintText: 'e.g. Marriage Toxin',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Title is required' : null,
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Title is required' : null,
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
             TextFormField(
               controller: _group,
               decoration: const InputDecoration(

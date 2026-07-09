@@ -30,14 +30,13 @@ class WatchEntry {
     this.notificationsEnabled = true,
   }) : addedAt = addedAt ?? DateTime.now();
 
-  /// Card heading, formatted as "Anime Name | Uploader" (the release group).
-  /// Falls back to the raw [title] until the AniList name is resolved.
-  String get displayTitle {
-    final name = (animeName != null && animeName!.trim().isNotEmpty)
-        ? animeName!.trim()
-        : title;
-    return group.trim().isEmpty ? name : '$name | ${group.trim()}';
-  }
+  /// Card heading — the AniList display name, falling back to the nyaa search
+  /// title until AniList resolves. The release group is intentionally omitted;
+  /// it's visible in the individual release tiles below.
+  String get displayTitle =>
+      (animeName != null && animeName!.trim().isNotEmpty)
+          ? animeName!.trim()
+          : title;
 
   /// Query string sent to nyaa RSS: title + group + quality (full-text AND).
   String get nyaaQuery =>

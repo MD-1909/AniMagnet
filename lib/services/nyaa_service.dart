@@ -180,6 +180,29 @@ class NyaaService {
 
   // ---- Title heuristics ---------------------------------------------------
 
+  /// Extract the bare anime title from a full nyaa release string.
+  ///
+  /// E.g. `[SubsPlease] Re:ZERO Season 4 - 01 (1080p) [ABCD1234]`
+  ///   → `Re:ZERO Season 4`
+  ///
+  /// Strategy:
+  ///   1. Strip leading [Group] / (Group) tag.
+  ///   2. Cut at the first episode marker (` - 01`, ` - 01v2`, etc.).
+  ///   3. Strip any remaining trailing quality / hash tokens.
+  static String extractNyaaTitle(String releaseTitle) {
+    var t = releaseTitle.trim();
+    // 1. Remove leading [Group] or (Group)
+    t = t.replaceFirst(RegExp(r'^[\[\(][^\]\)]+[\]\)]\s*'), '');
+    // 2. Cut at episode marker: " - <digits>" that isn't part of the title.
+    //    We only cut when followed by optional "v<n>" then whitespace/bracket/end
+    //    so " - Starting" (not digits) is left alone.
+    t = t.replaceFirst(
+        RegExp(r'\s*[-–]\s*\d{1,3}(?:v\d)?\s*(?:[\[\(]|$).*$'), '').trim();
+    // 3. Remove any trailing [hash] or (quality) that survived step 2.
+    t = t.replaceFirst(RegExp(r'\s*[\[\(][^\]\)]*[\]\)].*$'), '').trim();
+    return t;
+  }
+
   String _extractGroup(String title) {
     // Leading [Group] or (Group)
     final m = RegExp(r'^\s*[\[\(]([^\]\)]+)[\]\)]').firstMatch(title);

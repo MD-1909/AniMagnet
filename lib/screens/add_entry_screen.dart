@@ -54,9 +54,13 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
   }
 
   void _pick(ReleaseVersion v) {
+    // Derive the nyaa search string from the actual release title rather than
+    // the user's informal search query — this gives the exact season-specific
+    // string nyaa uses, so future RSS queries reliably find the right series.
+    final parsed = NyaaService.extractNyaaTitle(v.sampleTitle);
     final entry = WatchEntry(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: _searchedTitle,
+      title: parsed.isNotEmpty ? parsed : _searchedTitle,
       group: v.group,
       quality: v.quality,
     );
