@@ -390,6 +390,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return AppBar(
       title: const Text('AniMagnet'),
       actions: [
+        // In _HomeScreenState build(), add to AppBar actions temporarily:
+        IconButton(
+          icon: const Icon(Icons.notifications_active),
+          tooltip: 'Test notification',
+          onPressed: _testNotif,
+        ),
         IconButton(
           tooltip: 'Refresh',
           icon: const Icon(Icons.refresh),
