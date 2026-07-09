@@ -146,17 +146,13 @@ class _HomeScreenState extends State<HomeScreen> {
       _snack('AniList returned nothing — check your connection');
       return;
     }
-    await widget.notifications.scheduleTest(
+    final status = await widget.notifications.scheduleTest(
       title: next.title,
       anilistId: next.mediaId,
       nextAiringAt: next.airingAt,
       episode: next.episode,
     );
-    final fireAt = DateTime.now().add(const Duration(minutes: 1));
-    _snack(
-      '"${next.title}" ep ${next.episode} — test notif fires at '
-      '${fireAt.hour}:${fireAt.minute.toString().padLeft(2, '0')}',
-    );
+    _snack('"${next.title}" ep ${next.episode} — $status');
   }
 
 
