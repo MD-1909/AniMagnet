@@ -104,9 +104,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final needName = entry.animeName == null || entry.animeName!.trim().isEmpty;
     // Only fetch airing schedule when the entry has notifications enabled —
     // no point paying for the API call if we won't use the data.
+    // Use the upload-window end (airing + 2h) as the staleness threshold, not
+    // the airing time itself: an episode that aired 2 min ago still has a live
+    // notification scheduled for +2h, so there's nothing to refresh yet.
+    final uploadWindowEnd = entry.nextAiringAt
+        ?.add(NotificationService.airingToNyaaDelay);
     final needAiring = entry.notificationsEnabled &&
         (entry.nextAiringAt == null ||
-            !entry.nextAiringAt!.isAfter(DateTime.now().toUtc()));
+            !(uploadWindowEnd?.isAfter(DateTime.now().toUtc()) ?? false));
     if (!needCover && !needName && !needAiring) return;
     final media = entry.anilistId != null
         ? await widget.anilist.fetchById(entry.anilistId!)
@@ -677,8 +682,23 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget? _nextEpisodeChip(WatchEntry entry) {
     final airing = entry.nextAiringAt;
     if (airing == null) return null;
-    final expected = airing.add(NotificationService.airingToNyaaDelay);
-    final diff = expected.toLocal().difference(DateTime.now());
+    final now = DateTime.now();
+
+    // If next episode is >6d 22h away, the previous one aired within the last
+    // 2h window — show that countdown and episode number instead.
+    final prevWindowEnd = airing
+        .subtract(const Duration(days: 7))
+        .add(NotificationService.airingToNyaaDelay)
+        .toLocal();
+    final usePrev = prevWindowEnd.isAfter(now);
+
+    final expected =
+        usePrev ? prevWindowEnd : airing.add(NotificationService.airingToNyaaDelay).toLocal();
+    final ep = usePrev
+        ? (entry.nextEpisode != null ? entry.nextEpisode! - 1 : null)
+        : entry.nextEpisode;
+
+    final diff = expected.difference(now);
     if (diff.isNegative) return null;
 
     final String countdown;
@@ -692,7 +712,6 @@ class _HomeScreenState extends State<HomeScreen> {
       countdown = '${diff.inMinutes}m';
     }
 
-    final ep = entry.nextEpisode;
     final label = ep != null ? 'Ep $ep in $countdown' : 'in $countdown';
     return _chip(label);
   }
