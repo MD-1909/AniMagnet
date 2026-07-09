@@ -7,6 +7,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../models/release.dart';
 import '../models/watch_entry.dart';
+import 'log_service.dart';
 import 'posting_predictor.dart';
 
 /// Schedules local notifications for each anime, timed to when the episode
@@ -120,10 +121,12 @@ class NotificationService {
             .subtract(const Duration(days: 7))
             .add(airingToNyaaDelay)
             .toLocal();
-        fireAt = (prevCandidate.isAfter(now) && prevCandidate.isBefore(candidate))
+        final chosen = (prevCandidate.isAfter(now) && prevCandidate.isBefore(candidate))
             ? prevCandidate
             : candidate;
-        debugPrint('[Notify] "${entry.title}" using AniList airing time: $nextAiring');
+        fireAt = chosen;
+        LogService.log('NOTIFY',
+            '"${entry.title}" AniList airing $nextAiring → fire ${chosen.toLocal()}');
       }
     }
     if (fireAt == null) {
@@ -132,11 +135,15 @@ class NotificationService {
       final predicted = PostingPredictor.predictNext(dates, now);
       if (predicted != null) {
         fireAt = predicted.add(predictionBuffer);
-        debugPrint('[Notify] "${entry.title}" using cadence prediction: $predicted');
+        LogService.log('NOTIFY',
+            '"${entry.title}" cadence prediction → fire $fireAt');
       }
     }
 
-    if (fireAt == null || !fireAt.isAfter(now)) return;
+    if (fireAt == null || !fireAt.isAfter(now)) {
+      LogService.log('NOTIFY', '"${entry.title}" skipped — no valid fire time');
+      return;
+    }
 
     final detail = entry.group.isNotEmpty || entry.quality.isNotEmpty
         ? 'Open AniMagnet to grab the ${[
@@ -145,14 +152,11 @@ class NotificationService {
           ].where((s) => s.isNotEmpty).join(' ')} release.'
         : 'Open AniMagnet to check for the new release.';
 
-    // Prefer exact alarms — they survive Doze mode and OEM battery savers.
-    // Fall back to inexact if the user hasn't granted SCHEDULE_EXACT_ALARM.
     final exact = await _canUseExactAlarms();
     final scheduleMode = exact
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
-    debugPrint('[Notify] "${entry.title}" using ${exact ? "exact" : "inexact"} alarm, firing at $fireAt');
-    
+
     try {
       await _plugin.zonedSchedule(
         id: id,
@@ -170,12 +174,15 @@ class NotificationService {
         ),
         androidScheduleMode: scheduleMode,
       );
-      debugPrint('[Notify] "${entry.title}" scheduled for $fireAt');
+      LogService.log('NOTIFY',
+          '"${entry.title}" scheduled $fireAt (${exact ? "exact" : "inexact"})');
     } catch (e) {
-      debugPrint('[Notify] schedule failed for "${entry.title}": $e');
+      LogService.log('NOTIFY', '"${entry.title}" schedule FAILED: $e');
     }
   }
 
-  Future<void> cancelForEntry(WatchEntry entry) =>
-      _plugin.cancel(id: _idFor(entry));
+  Future<void> cancelForEntry(WatchEntry entry) async {
+    await _plugin.cancel(id: _idFor(entry));
+    LogService.log('NOTIFY', '"${entry.title}" cancelled');
+  }
 }

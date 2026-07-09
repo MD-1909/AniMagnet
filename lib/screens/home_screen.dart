@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/release.dart';
 import '../models/watch_entry.dart';
 import '../services/anilist_service.dart';
+import '../services/log_service.dart';
 import '../services/notification_service.dart';
 import '../services/nyaa_service.dart';
 import '../services/storage_service.dart';
@@ -86,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final releases = await widget.nyaa.fetchForEntry(entry);
       if (!mounted) return;
       setState(() => _fetches[entry.id] = _Fetch(releases: releases));
+      LogService.log('NYAA', '"${entry.displayTitle}" → ${releases.length} release(s)');
       // Schedule immediately with whatever airing time is already cached.
       // Then resolve AniList (which may update nextAiringAt) and reschedule
       // so the notification uses the fresh data rather than the stale cache.
@@ -117,6 +120,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ? await widget.anilist.fetchById(entry.anilistId!)
         : await widget.anilist.searchByTitle(entry.searchTitle);
     if (media == null) return;
+    LogService.log('ANILIST',
+        '"${entry.displayTitle}" → id=${media.id} "${media.title}" '
+        'ep=${media.nextEpisode} airingAt=${media.nextAiringAt?.toUtc()} '
+        'status=${media.status}');
     var changed = false;
     if (needCover && media.coverUrl != null && media.coverUrl!.isNotEmpty) {
       entry.coverUrl = media.coverUrl;
@@ -142,6 +149,15 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!changed) return;
     await widget.storage.saveWatchlist(_watchlist);
     if (mounted) setState(() {});
+  }
+
+  Future<void> _exportLog() async {
+    final path = await LogService.exportPath();
+    if (path == null) {
+      _snack('Failed to write log file.');
+      return;
+    }
+    await Share.shareXFiles([XFile(path)], text: 'AniMagnet debug log');
   }
 
   Future<void> _openMagnet(Release release) async {
@@ -178,6 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _commitNew(WatchEntry entry) async {
     setState(() => _watchlist = [..._watchlist, entry]);
     await widget.storage.saveWatchlist(_watchlist);
+    LogService.log('ANIME', 'Added "${entry.displayTitle}" (anilistId=${entry.anilistId})');
     await _refreshEntry(entry);
   }
 
@@ -190,6 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
             )),
     );
     if (updated == null) return;
+    LogService.log('ANIME', 'Edited "${updated.displayTitle}" (anilistId=${updated.anilistId})');
     setState(() {
       _watchlist =
           _watchlist.map((e) => e.id == updated.id ? updated : e).toList();
@@ -216,6 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (ok != true) return;
     await widget.notifications.cancelForEntry(entry);
+    LogService.log('ANIME', 'Removed "${entry.displayTitle}"');
     setState(() {
       _watchlist = _watchlist.where((e) => e.id != entry.id).toList();
       _fetches.remove(entry.id);
@@ -393,10 +412,12 @@ class _HomeScreenState extends State<HomeScreen> {
           onSelected: (v) {
             if (v == 'manual') _addManual();
             if (v == 'seen') _markAllSeen();
+            if (v == 'log') _exportLog();
           },
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'manual', child: Text('Add manually')),
             PopupMenuItem(value: 'seen', child: Text('Mark all as seen')),
+            PopupMenuItem(value: 'log', child: Text('Export debug log')),
           ],
         ),
       ],
