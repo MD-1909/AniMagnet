@@ -82,13 +82,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshEntry(WatchEntry entry) async {
     setState(() => _fetches[entry.id] = const _Fetch(loading: true));
-    unawaited(_resolveCover(entry));
     try {
       final releases = await widget.nyaa.fetchForEntry(entry);
       if (!mounted) return;
       setState(() => _fetches[entry.id] = _Fetch(releases: releases));
-      // Re-arm the predictive notification with the freshest history.
+      // Schedule immediately with whatever airing time is already cached.
+      // Then resolve AniList (which may update nextAiringAt) and reschedule
+      // so the notification uses the fresh data rather than the stale cache.
       unawaited(widget.notifications.scheduleForEntry(entry, releases));
+      unawaited(_resolveCover(entry).then((_) {
+        if (mounted) unawaited(widget.notifications.scheduleForEntry(entry, releases));
+      }));
     } catch (e) {
       if (!mounted) return;
       setState(() => _fetches[entry.id] = _Fetch(error: '$e'));
