@@ -7,6 +7,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../models/release.dart';
 import '../models/watch_entry.dart';
+import 'log_service.dart';
 import 'posting_predictor.dart';
 
 /// Schedules local notifications for each anime, timed to when the episode
@@ -109,20 +110,44 @@ class NotificationService {
     // (e.g. completed series, or before AniList data has been fetched).
     DateTime? fireAt;
     final nextAiring = entry.nextAiringAt;
-    if (nextAiring != null && nextAiring.isAfter(now.toUtc())) {
-      fireAt = nextAiring.add(airingToNyaaDelay).toLocal();
-      debugPrint('[Notify] "${entry.title}" using AniList airing time: $nextAiring');
-    } else {
+    if (nextAiring != null) {
+      final candidate = nextAiring.add(airingToNyaaDelay).toLocal();
+      if (candidate.isAfter(now)) {
+        // If ep3 is >6d 22h away the previous episode aired within the last
+        // 2h window. Prefer that sooner notification over scheduling ep3+2h,
+        // which covers fresh adds and entries whose nextAiringAt was already
+        // bumped to the next episode before this window-guard was in place.
+        final prevCandidate = nextAiring
+            .subtract(const Duration(days: 7))
+            .add(airingToNyaaDelay)
+            .toLocal();
+        // prevCandidate must be within the next 2h — if it's days away the
+        // previous episode hasn't aired yet (show has a non-weekly gap).
+        final prevIsImminent = prevCandidate.isAfter(now) &&
+            prevCandidate.isBefore(now.add(airingToNyaaDelay));
+        final chosen = (prevIsImminent && prevCandidate.isBefore(candidate))
+            ? prevCandidate
+            : candidate;
+        fireAt = chosen;
+        LogService.log('NOTIFY',
+            '"${entry.title}" AniList airing $nextAiring → fire ${chosen.toLocal()}');
+      }
+    }
+    if (fireAt == null) {
       final dates =
           releases.map((r) => r.pubDate).whereType<DateTime>().toList();
       final predicted = PostingPredictor.predictNext(dates, now);
       if (predicted != null) {
         fireAt = predicted.add(predictionBuffer);
-        debugPrint('[Notify] "${entry.title}" using cadence prediction: $predicted');
+        LogService.log('NOTIFY',
+            '"${entry.title}" cadence prediction → fire $fireAt');
       }
     }
 
-    if (fireAt == null || !fireAt.isAfter(now)) return;
+    if (fireAt == null || !fireAt.isAfter(now)) {
+      LogService.log('NOTIFY', '"${entry.title}" skipped — no valid fire time');
+      return;
+    }
 
     final detail = entry.group.isNotEmpty || entry.quality.isNotEmpty
         ? 'Open AniMagnet to grab the ${[
@@ -131,14 +156,11 @@ class NotificationService {
           ].where((s) => s.isNotEmpty).join(' ')} release.'
         : 'Open AniMagnet to check for the new release.';
 
-    // Prefer exact alarms — they survive Doze mode and OEM battery savers.
-    // Fall back to inexact if the user hasn't granted SCHEDULE_EXACT_ALARM.
     final exact = await _canUseExactAlarms();
     final scheduleMode = exact
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
-    debugPrint('[Notify] "${entry.title}" using ${exact ? "exact" : "inexact"} alarm, firing at $fireAt');
-    
+
     try {
       await _plugin.zonedSchedule(
         id: id,
@@ -156,12 +178,15 @@ class NotificationService {
         ),
         androidScheduleMode: scheduleMode,
       );
-      debugPrint('[Notify] "${entry.title}" scheduled for $fireAt');
+      LogService.log('NOTIFY',
+          '"${entry.title}" scheduled $fireAt (${exact ? "exact" : "inexact"})');
     } catch (e) {
-      debugPrint('[Notify] schedule failed for "${entry.title}": $e');
+      LogService.log('NOTIFY', '"${entry.title}" schedule FAILED: $e');
     }
   }
 
-  Future<void> cancelForEntry(WatchEntry entry) =>
-      _plugin.cancel(id: _idFor(entry));
+  Future<void> cancelForEntry(WatchEntry entry) async {
+    await _plugin.cancel(id: _idFor(entry));
+    LogService.log('NOTIFY', '"${entry.title}" cancelled');
+  }
 }
