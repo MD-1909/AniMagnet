@@ -240,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Remove "${entry.title}"?'),
+        title: Text('Remove "${entry.displayTitle}"?'),
         content: const Text('This removes it from your watchlist.'),
         actions: [
           TextButton(

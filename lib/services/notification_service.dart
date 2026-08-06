@@ -130,7 +130,7 @@ class NotificationService {
             : candidate;
         fireAt = chosen;
         LogService.log('NOTIFY',
-            '"${entry.title}" AniList airing $nextAiring → fire ${chosen.toLocal()}');
+            '"${entry.displayTitle}" AniList airing $nextAiring → fire ${chosen.toLocal()}');
       }
     }
     if (fireAt == null) {
@@ -140,12 +140,12 @@ class NotificationService {
       if (predicted != null) {
         fireAt = predicted.add(predictionBuffer);
         LogService.log('NOTIFY',
-            '"${entry.title}" cadence prediction → fire $fireAt');
+            '"${entry.displayTitle}" cadence prediction → fire $fireAt');
       }
     }
 
     if (fireAt == null || !fireAt.isAfter(now)) {
-      LogService.log('NOTIFY', '"${entry.title}" skipped — no valid fire time');
+      LogService.log('NOTIFY', '"${entry.displayTitle}" skipped — no valid fire time');
       return;
     }
 
@@ -164,7 +164,7 @@ class NotificationService {
     try {
       await _plugin.zonedSchedule(
         id: id,
-        title: 'New ${entry.animeName ?? entry.title} episode likely out',
+        title: 'New ${entry.displayTitle} episode likely out',
         body: detail,
         scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
         notificationDetails: const NotificationDetails(
@@ -179,14 +179,14 @@ class NotificationService {
         androidScheduleMode: scheduleMode,
       );
       LogService.log('NOTIFY',
-          '"${entry.title}" scheduled $fireAt (${exact ? "exact" : "inexact"})');
+          '"${entry.displayTitle}" scheduled $fireAt (${exact ? "exact" : "inexact"})');
     } catch (e) {
-      LogService.log('NOTIFY', '"${entry.title}" schedule FAILED: $e');
+      LogService.log('NOTIFY', '"${entry.displayTitle}" schedule FAILED: $e');
     }
   }
 
   Future<void> cancelForEntry(WatchEntry entry) async {
     await _plugin.cancel(id: _idFor(entry));
-    LogService.log('NOTIFY', '"${entry.title}" cancelled');
+    LogService.log('NOTIFY', '"${entry.displayTitle}" cancelled');
   }
 }
