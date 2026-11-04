@@ -4,7 +4,7 @@ import '../models/watch_entry.dart';
 import '../services/nyaa_service.dart';
 
 /// Automated add flow: search a title on nyaa, show the distinct
-/// (group/quality) versions found for episode 1, let the user pick one.
+/// (group/quality/codec) versions found for episode 1, let the user pick one.
 /// Pops the resulting [WatchEntry].
 class AddEntryScreen extends StatefulWidget {
   final NyaaService nyaa;
@@ -63,6 +63,7 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
       title: parsed.isNotEmpty ? parsed : _searchedTitle,
       group: v.group,
       quality: v.quality,
+      codec: v.codec,
     );
     Navigator.of(context).pop(entry);
   }

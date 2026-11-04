@@ -1,10 +1,11 @@
-/// A configured anime in the watchlist. The (group + quality) act as the
-/// match pattern: on refresh we only keep releases whose title contains both.
+/// A configured anime in the watchlist. The (group + quality + codec) act as
+/// the match pattern: on refresh we only keep releases that match all three.
 class WatchEntry {
   final String id;
   String title; // anime title, e.g. "Marriage Toxin"
   String group; // release group/source, e.g. "ASW"
   String quality; // e.g. "1080p"
+  String codec; // '' = any, else one of [codecOptions]
   int? anilistId;
   String? coverUrl; // cached AniList coverImage.large
   String? animeName; // cached clean AniList display name, used for the card title
@@ -21,6 +22,7 @@ class WatchEntry {
     required this.title,
     required this.group,
     required this.quality,
+    this.codec = '',
     this.anilistId,
     this.coverUrl,
     this.animeName,
@@ -62,14 +64,40 @@ class WatchEntry {
     return cleaned.isEmpty ? title : cleaned;
   }
 
+  static const codecOptions = ['AVC', 'HEVC', 'AV1'];
+
+  /// Codec tagged in a release title, or null when untagged.
+  static String? detectCodec(String releaseTitle) {
+    if (RegExp(r'\b(hevc|x265|h\.?265)\b', caseSensitive: false)
+        .hasMatch(releaseTitle)) {
+      return 'HEVC';
+    }
+    if (RegExp(r'\bav1\b', caseSensitive: false).hasMatch(releaseTitle)) {
+      return 'AV1';
+    }
+    if (RegExp(r'\b(avc|x264|h\.?264)\b', caseSensitive: false)
+        .hasMatch(releaseTitle)) {
+      return 'AVC';
+    }
+    return null;
+  }
+
   /// Client-side guard: a release belongs to this entry only if its title
-  /// contains the configured group and quality (case-insensitive).
+  /// contains the configured group and quality (case-insensitive) and the
+  /// configured codec.
   bool matches(String releaseTitle) {
     final t = releaseTitle.toLowerCase();
     final okGroup = group.trim().isEmpty || t.contains(group.toLowerCase());
     final okQuality =
         quality.trim().isEmpty || t.contains(quality.toLowerCase());
-    return okGroup && okQuality;
+    return okGroup && okQuality && _matchesCodec(releaseTitle);
+  }
+
+  bool _matchesCodec(String releaseTitle) {
+    if (codec.isEmpty) return true;
+    // Many groups (e.g. SubsPlease) don't tag AVC, so untagged counts as AVC.
+    final detected = detectCodec(releaseTitle) ?? 'AVC';
+    return detected == codec;
   }
 
   Map<String, dynamic> toJson() => {
@@ -77,6 +105,7 @@ class WatchEntry {
         'title': title,
         'group': group,
         'quality': quality,
+        'codec': codec,
         'anilistId': anilistId,
         'coverUrl': coverUrl,
         'animeName': animeName,
@@ -91,6 +120,7 @@ class WatchEntry {
         title: json['title'] as String,
         group: (json['group'] ?? '') as String,
         quality: (json['quality'] ?? '') as String,
+        codec: (json['codec'] ?? '') as String,
         anilistId: json['anilistId'] as int?,
         coverUrl: json['coverUrl'] as String?,
         animeName: json['animeName'] as String?,

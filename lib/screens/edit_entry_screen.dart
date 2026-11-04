@@ -41,9 +41,13 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
   /// Selected quality; null = Unspecified (no quality filter).
   String? _selectedQuality;
 
+  /// Selected codec; null = Any (no codec filter).
+  String? _selectedCodec;
+
   bool _checkingGroup = false;
   int? _groupReleaseCount; // null = not checked; 0 = checked, none found
   Set<String> _availableQualities = {};
+  Set<String> _availableCodecs = {};
   Timer? _checkDebounce;
 
   String? _resolvedName;
@@ -76,6 +80,9 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
     // Map existing quality to picker state.
     final eq = e?.quality.trim() ?? '';
     _selectedQuality = _qualityOptions.contains(eq) ? eq : null;
+
+    final ec = e?.codec ?? '';
+    _selectedCodec = WatchEntry.codecOptions.contains(ec) ? ec : null;
 
     _anilistId.addListener(() {
       final typed = int.tryParse(_anilistId.text.trim());
@@ -131,6 +138,7 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
       setState(() {
         _groupReleaseCount = null;
         _availableQualities = {};
+        _availableCodecs = {};
       });
       return;
     }
@@ -138,6 +146,7 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
       _checkingGroup = true;
       _groupReleaseCount = null;
       _availableQualities = {};
+      _availableCodecs = {};
     });
     LogService.log('NYAA', 'Group check: "$title" + "$group"');
     try {
@@ -146,16 +155,19 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
       final releases = await widget.nyaa.fetchForEntry(temp);
       if (!mounted) return;
       final qs = <String>{};
+      final cs = <String>{};
       for (final r in releases) {
         final q = NyaaService.extractStandardQuality(r.title);
         if (q != null) qs.add(q);
+        cs.add(WatchEntry.detectCodec(r.title) ?? 'AVC');
       }
       LogService.log('NYAA',
-          'Group check "$group" → ${releases.length} release(s), qualities: ${qs.isEmpty ? "none detected" : qs.join(", ")}');
+          'Group check "$group" → ${releases.length} release(s), qualities: ${qs.isEmpty ? "none detected" : qs.join(", ")}, codecs: ${cs.isEmpty ? "none" : cs.join(", ")}');
       setState(() {
         _checkingGroup = false;
         _groupReleaseCount = releases.length;
         _availableQualities = qs;
+        _availableCodecs = cs;
       });
     } catch (e) {
       LogService.log('NYAA', 'Group check "$group" failed: $e');
@@ -209,6 +221,7 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
       title: e?.title ?? _title.text.trim(),
       group: _effectiveGroup ?? '',
       quality: _selectedQuality ?? '',
+      codec: _selectedCodec ?? '',
       anilistId: newId,
       coverUrl: idChanged ? null : e?.coverUrl,
       animeName: idChanged ? _resolvedName : e?.animeName,
@@ -264,6 +277,9 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
             const SizedBox(height: 20),
 
             _qualityPicker(theme),
+            const SizedBox(height: 20),
+
+            _codecPicker(theme),
             const SizedBox(height: 24),
 
             // ---- AniList ---------------------------------------------------
@@ -367,6 +383,7 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
                     _selectedGroup = (_selectedGroup == g) ? null : g;
                     _groupReleaseCount = null;
                     _availableQualities = {};
+                    _availableCodecs = {};
                   });
                   if (_selectedGroup != null) _checkGroupAvailability();
                 },
@@ -381,6 +398,7 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
                       (_selectedGroup == 'OTHER') ? null : 'OTHER';
                   _groupReleaseCount = null;
                   _availableQualities = {};
+                  _availableCodecs = {};
                 });
               },
             ),
@@ -468,6 +486,40 @@ class _EditEntryScreenState extends State<EditEntryScreen> {
               selected: _selectedQuality == null,
               theme: theme,
               onTap: () => setState(() => _selectedQuality = null),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ---- Codec picker -------------------------------------------------------
+
+  Widget _codecPicker(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Video codec', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final c in WatchEntry.codecOptions)
+              _selChip(
+                label: c,
+                selected: _selectedCodec == c,
+                dimmed: _availableCodecs.isNotEmpty &&
+                    !_availableCodecs.contains(c),
+                theme: theme,
+                onTap: () => setState(
+                    () => _selectedCodec = (_selectedCodec == c) ? null : c),
+              ),
+            _selChip(
+              label: 'Any',
+              selected: _selectedCodec == null,
+              theme: theme,
+              onTap: () => setState(() => _selectedCodec = null),
             ),
           ],
         ),
