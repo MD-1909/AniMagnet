@@ -20,9 +20,10 @@ I wanted a proper mobile app built around my workflow: a watchlist of ongoing an
 
 ## Features
 
-- **Watchlist** — track ongoing anime by release group and quality; the card title is always the clean AniList display name, not the raw search string
-- **Auto-add** — search a title, pick the release version you want from episode 1 results; the episode-1 release title is parsed to extract the exact nyaa search string (strips group tag, episode marker, quality token) so future RSS queries find the right season reliably
+- **Watchlist** — track ongoing anime by release group, quality and video codec; the card title is always the clean AniList display name, not the raw search string
+- **Auto-add** — search a title, pick the release version you want from episode 1 results (versions are split by group, quality and codec, so e.g. Erai-raws AVC and HEVC uploads appear as separate choices); the episode-1 release title is parsed to extract the exact nyaa search string (strips group tag, episode marker, quality token) so future RSS queries find the right season reliably
 - **Group & quality pickers** — the edit screen offers one-tap chips for the common release groups (ASW, DKB, Judas, ToonsHub) plus an "Other" text field; picking any group triggers a live nyaa check to confirm that group actually carries this anime, with a count of matching releases and per-quality availability greying in the quality picker
+- **Video codec filter** — for groups that upload the same episode in multiple codecs, pick AVC (H.264), HEVC (H.265) or AV1 per anime to keep only that version (default: Any). Releases with no codec tag are treated as AVC, since groups like SubsPlease don't label their AVC uploads. Codecs the selected group hasn't uploaded are greyed out
 - **Release feed** — on launch and pull-to-refresh, queries each entry's nyaa RSS, filters to matching releases (newest first), shows size and publish date
 - **Seen/unseen tracking** — only unseen releases shown by default; tap to expand watched ones. Opened releases lose the NEW dot automatically
 - **One-tap magnet** — tap a release to open the magnet link directly in your torrent app
@@ -81,7 +82,7 @@ lib/
   main.dart                    app entry + AMOLED dark theme + service wiring
   models/
     release.dart               one parsed nyaa torrent
-    watch_entry.dart           tracked anime (title/group/quality, match + searchTitle)
+    watch_entry.dart           tracked anime (title/group/quality/codec, match + searchTitle)
   services/
     nyaa_service.dart          RSS fetch/parse, magnet construction, version search
     anilist_service.dart       GraphQL cover art + airing schedule lookup
@@ -120,5 +121,6 @@ The next refresh will fetch the correct season's schedule and wire up the notifi
 ## Notes
 
 - nyaa RSS doesn't include magnet links — they're constructed from `<nyaa:infoHash>` plus public trackers
-- Episode-1 detection in the add flow is heuristic; all distinct group/quality combos found are offered, preferring an episode-1 sample
+- Episode-1 detection in the add flow is heuristic; all distinct group/quality/codec combos found are offered, preferring an episode-1 sample
+- Codec filtering is done client-side from title tags (`HEVC`/`x265`/`H.265`, `AV1`, `AVC`/`x264`/`H.264`), so untagged releases are never dropped from the nyaa query itself
 - AniList lookup is best-effort and never blocks a refresh

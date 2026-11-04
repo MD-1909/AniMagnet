@@ -5,16 +5,19 @@ import '../models/release.dart';
 import '../models/watch_entry.dart';
 
 /// One distinct release "version" surfaced during the add-anime search flow,
-/// e.g. group "ASW" / quality "1080p". Used to let the user pick a pattern.
+/// e.g. group "ASW" / quality "1080p" / codec "HEVC". Used to let the user
+/// pick a pattern.
 class ReleaseVersion {
   final String group;
   final String quality;
+  final String codec; // '' when the title has no codec tag
   final String sampleTitle; // representative title (prefer episode 1)
   final String size;
 
   const ReleaseVersion({
     required this.group,
     required this.quality,
+    required this.codec,
     required this.sampleTitle,
     required this.size,
   });
@@ -22,7 +25,7 @@ class ReleaseVersion {
   String get label {
     final g = group.isEmpty ? '(no group)' : group;
     final q = quality.isEmpty ? '(unknown quality)' : quality;
-    return '$g · $q';
+    return codec.isEmpty ? '$g · $q' : '$g · $q · $codec';
   }
 }
 
@@ -77,7 +80,7 @@ class NyaaService {
   }
 
   /// Add-flow: search by title and collapse results into distinct
-  /// (group, quality) versions, preferring an episode-1 sample for each.
+  /// (group, quality, codec) versions, preferring an episode-1 sample for each.
   Future<List<ReleaseVersion>> searchVersions(String title) async {
     final releases = await _fetch(title);
 
@@ -86,16 +89,17 @@ class NyaaService {
     for (final r in releases) {
       final group = _extractGroup(r.title);
       final quality = _extractQuality(r.title);
+      final codec = WatchEntry.detectCodec(r.title) ?? '';
       final ep = _extractEpisode(r.title);
-      final key = '${group.toLowerCase()}|${quality.toLowerCase()}';
+      final key = '${group.toLowerCase()}|${quality.toLowerCase()}|$codec';
 
       final isEp1 = ep == 1;
       final existing = byKey[key];
       if (existing == null) {
-        byKey[key] = _VersionAcc(group, quality, r.title, r.size, isEp1);
+        byKey[key] = _VersionAcc(group, quality, codec, r.title, r.size, isEp1);
       } else if (isEp1 && !existing.isEp1) {
         // prefer an episode-1 sample title when available
-        byKey[key] = _VersionAcc(group, quality, r.title, r.size, true);
+        byKey[key] = _VersionAcc(group, quality, codec, r.title, r.size, true);
       }
     }
 
@@ -103,15 +107,18 @@ class NyaaService {
         .map((a) => ReleaseVersion(
               group: a.group,
               quality: a.quality,
+              codec: a.codec,
               sampleTitle: a.title,
               size: a.size,
             ))
         .toList();
 
-    // Stable, readable order: group name then quality.
+    // Stable, readable order: group name, then quality, then codec.
     versions.sort((a, b) {
       final g = a.group.toLowerCase().compareTo(b.group.toLowerCase());
-      return g != 0 ? g : a.quality.compareTo(b.quality);
+      if (g != 0) return g;
+      final q = a.quality.compareTo(b.quality);
+      return q != 0 ? q : a.codec.compareTo(b.codec);
     });
     return versions;
   }
@@ -248,10 +255,12 @@ class NyaaService {
 class _VersionAcc {
   final String group;
   final String quality;
+  final String codec;
   final String title;
   final String size;
   final bool isEp1;
-  _VersionAcc(this.group, this.quality, this.title, this.size, this.isEp1);
+  _VersionAcc(
+      this.group, this.quality, this.codec, this.title, this.size, this.isEp1);
 }
 
 class NyaaException implements Exception {
